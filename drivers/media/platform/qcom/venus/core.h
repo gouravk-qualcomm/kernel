@@ -415,6 +415,8 @@ enum venus_inst_modes {
  * @buf_count:		used to count number of buffers (reqbuf(0))
  * @tss:		timestamp metadata
  * @payloads:		cache plane payload to use it for clock/BW scaling
+ * @last_buf_ns:	timestamp of the first queued input buffer in window
+ * @frame_counter:	number of queued input buffers in window
  * @fps:		holds current FPS
  * @timeperframe:	holds current time per frame structure
  * @fmt_out:	a reference to output format structure
@@ -486,6 +488,8 @@ struct venus_inst {
 	int buf_count;
 	struct venus_ts_metadata tss[VIDEO_MAX_FRAME];
 	unsigned long payloads[VIDEO_MAX_FRAME];
+	u64 last_buf_ns;
+	u32 frame_counter;
 	u64 fps;
 	struct v4l2_fract timeperframe;
 	const struct venus_format *fmt_out;

@@ -1144,6 +1144,9 @@ static int vdec_start_output(struct venus_inst *inst)
 	inst->sequence_out = 0;
 	inst->reconfig = false;
 	inst->next_buf_last = false;
+	inst->last_buf_ns = 0;
+	inst->frame_counter = 0;
+	inst->fps = VENUS_MAX_FPS;
 
 	ret = vdec_set_properties(inst);
 	if (ret)
@@ -1375,10 +1378,27 @@ static void vdec_vb2_buf_queue(struct vb2_buffer *vb)
 	struct venus_inst *inst = vb2_get_drv_priv(vb->vb2_queue);
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	static const struct v4l2_event eos = { .type = V4L2_EVENT_EOS };
+	u64 cur_buf_ns, delta_ns;
 
 	vdec_pm_get_put(inst);
 
 	mutex_lock(&inst->lock);
+
+	if (V4L2_TYPE_IS_OUTPUT(vb->vb2_queue->type)) {
+		cur_buf_ns = ktime_get_ns();
+
+		if (!inst->frame_counter)
+			inst->last_buf_ns = cur_buf_ns;
+
+		inst->frame_counter++;
+		delta_ns = cur_buf_ns - inst->last_buf_ns;
+
+		if (delta_ns >= NSEC_PER_SEC) {
+			inst->fps = clamp_t(u32, inst->frame_counter,
+					    30, VENUS_MAX_FPS);
+			inst->frame_counter = 0;
+		}
+	}
 
 	if (inst->next_buf_last && V4L2_TYPE_IS_CAPTURE(vb->vb2_queue->type) &&
 	    inst->codec_state == VENUS_DEC_STATE_DRC) {
